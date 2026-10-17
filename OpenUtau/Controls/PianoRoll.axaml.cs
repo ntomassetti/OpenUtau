@@ -11,6 +11,8 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using MonoMac.OpenGL;
+using NAudio.CoreAudioApi;
 using OpenUtau.App.ViewModels;
 using OpenUtau.App.Views;
 using OpenUtau.Core;
@@ -42,6 +44,7 @@ namespace OpenUtau.App.Controls {
 
         private bool isSelectingRange;
         private Point rangeSelectStartPoint = default;
+        private Point? notesPointerPos;
         private const double RangeSelectThreshold = 5; // pixels
 
         private ReactiveCommand<RxVoid, RxVoid>? lyricsDialogCommand;
@@ -1018,6 +1021,7 @@ namespace OpenUtau.App.Controls {
         public void NotesCanvasPointerMoved(object sender, PointerEventArgs args) {
             var control = (Control)sender;
             var point = args.GetCurrentPoint(control);
+            notesPointerPos = args.GetPosition((Control)sender);
             args.Handled = true;
             if (ValueTipCanvas != null) {
                 valueTipPointerPosition = args.GetCurrentPoint(ValueTipCanvas!).Position;
@@ -1075,6 +1079,10 @@ namespace OpenUtau.App.Controls {
                 return;
             }
             Cursor = null;
+        }
+
+        public void NotesCanvasPointerExited(object sender, PointerEventArgs args) {
+            notesPointerPos = null; 
         }
 
         public void NotesCanvasPointerReleased(object sender, PointerReleasedEventArgs args) {
@@ -1631,6 +1639,27 @@ namespace OpenUtau.App.Controls {
                 case Key.Space:
                     if (isNone) {
                         playVm.PlayOrPause();
+                        return true;
+                    }
+                    if (isBoth) {
+                        //Play from start of project
+                        PlaybackManager.Inst.StopPlayback();
+                        playVm.MovePlayPos(0);
+                        playVm.PlayOrPause();
+                        return true;
+                    }
+                    if(isShift) {
+                        //Play from start of part
+                        PlaybackManager.Inst.StopPlayback();
+                        playVm.MovePlayPos(notesVm.Part.position);
+                        playVm.PlayOrPause();
+                        return true;
+                    }
+                    if (isCtrl && notesPointerPos is Point p) {
+                        //Play back from cursor position
+                        PlaybackManager.Inst.StopPlayback();
+                        notesVm.PointToLineTick(p, out int left, out _);
+                        playVm.PlayOrPause(tick: notesVm.Part.position + left);
                         return true;
                     }
                     if (isAlt) {

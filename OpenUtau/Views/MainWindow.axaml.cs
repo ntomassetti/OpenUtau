@@ -51,6 +51,7 @@ namespace OpenUtau.App.Views {
         // Time range selection state
         private bool isSelectingRange;
         private Point rangeSelectStartPoint = default;
+        private Point? partsPointerPos;
         private const double RangeSelectThreshold = 5; // pixels
 
         private readonly DispatcherTimer timer;
@@ -990,6 +991,15 @@ namespace OpenUtau.App.Views {
                     case Key.C: viewModel.TracksViewModel.CopyParts(); break;
                     case Key.X: viewModel.TracksViewModel.CutParts(); break;
                     case Key.V: viewModel.TracksViewModel.PasteParts(); break;
+                    case Key.Space:
+                        if( partsPointerPos is Point p) {
+                            viewModel.TracksViewModel.PointToLineTick(p, out int left, out _);
+                            viewModel.PlaybackViewModel.MovePlayPos(left);
+                            if (!viewModel.PlaybackViewModel.IsPlaying) {
+                                PlayOrPause();
+                            }
+                        }
+                        break;
                     default:
                         args.Handled = false;
                         break;
@@ -1365,6 +1375,7 @@ namespace OpenUtau.App.Views {
         public void PartsCanvasPointerMoved(object sender, PointerEventArgs args) {
             var control = (Control)sender;
             var point = args.GetCurrentPoint(control);
+            partsPointerPos = args.GetPosition((Control)sender);
             if (partEditState != null) {
                 partEditState.Update(point.Pointer, point.Position);
                 return;
@@ -1401,6 +1412,7 @@ namespace OpenUtau.App.Views {
             // otherwise it stays visible wherever nothing overrides it (e.g. around open popups).
             if (partEditState == null) {
                 Cursor = null;
+                partsPointerPos = null;
             }
         }
 
